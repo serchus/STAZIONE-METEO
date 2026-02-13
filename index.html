@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Weather Live - Monsampolo & Uscerno</title>
+<style>
+  body {
+    background: #0A1950;
+    color: white;
+    font-family: Arial, sans-serif;
+  }
+  .box {
+    background: #1E2D64;
+    padding: 20px;
+    margin: 20px;
+    width: 360px;
+    float: left;
+    border-radius: 10px;
+  }
+  h2 { margin-top: 0; font-size: 30px; }
+  p { font-size: 20px; margin: 5px 0; }
+  .small { font-size: 18px; margin: 2px 0; }
+</style>
+</head>
+<body>
+
+<div class="box" id="monsampolo">
+  <h2>MONSAMPOLO DEL TRONTO</h2>
+  <p class="small">Caricamento dati...</p>
+</div>
+
+<div class="box" id="uscerno">
+  <h2>USCERNO</h2>
+  <p class="small">Caricamento dati...</p>
+</div>
+
+<script>
+let lastTempMons = null;
+let lastPressureMons = null;
+let lastTempUsc = null;
+let lastPressureUsc = null;
+
+function getTrend(current, last) {
+  if (last === null) return "-";
+  if (current > last) return "In aumento";
+  if (current < last) return "In diminuzione";
+  return "Stabile";
+}
+
+async function fetchWeather(lat, lon, elementId) {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=relativehumidity_2m,pressure_msl&timezone=auto`;
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    const weather = data.current_weather;
+    const humidity = data.hourly.relativehumidity_2m[0];
+    
+    // Aggiorna tendenze
+    let trendTemp, trendPressure;
+    if (elementId === "monsampolo") {
+      trendTemp = getTrend(weather.temperature, lastTempMons);
+      trendPressure = getTrend(weather.pressure_msl, lastPressureMons);
+      lastTempMons = weather.temperature;
+      lastPressureMons = weather.pressure_msl;
+    } else {
+      trendTemp = getTrend(weather.temperature, lastTempUsc);
+      trendPressure = getTrend(weather.pressure_msl, lastPressureUsc);
+      lastTempUsc = weather.temperature;
+      lastPressureUsc = weather.pressure_msl;
+    }
+
+    // Aggiorna il DOM
+    document.getElementById(elementId).innerHTML = `
+      <h2>${elementId.toUpperCase()}</h2>
+      <p class="small">Ultimo aggiornamento locale: ${new Date().getHours().toString().padStart(2,'0')}:${new Date().getMinutes().toString().padStart(2,'0')}</p>
+      <p class="small">Ultimo aggiornamento Open-Meteo: ${weather.time.substring(11,16)}</p>
+      <p>Temp: ${weather.temperature.toFixed(1)} °C</p>
+      <p>Tendenza: ${trendTemp}</p>
+      <p>Umidità: ${humidity.toFixed(1)} %</p>
+      <p>Pressione: ${weather.pressure_msl.toFixed(1)} mbar</p>
+      <p>Tendenza: ${trendPressure}</p>
+      <p>Vento: ${weather.windspeed.toFixed(1)} km/h</p>
+      <p>Dir vento: ${weather.winddirection.toFixed(1)}°</p>
+    `;
+  } catch (e) {
+    document.getElementById(elementId).innerHTML = `<p class="small">Errore nel caricamento dati</p>`;
+    console.error(e);
+  }
+}
+
+// Primo fetch
+fetchWeather(42.8976, 13.7921, "monsampolo");
+fetchWeather(42.86106, 13.38225, "uscerno");
+
+// Aggiorna ogni 5 minuti
+setInterval(() => {
+  fetchWeather(42.8976, 13.7921, "monsampolo");
+  fetchWeather(42.86106, 13.38225, "uscerno");
+}, 300000);
+</script>
+
+</body>
+</html>
